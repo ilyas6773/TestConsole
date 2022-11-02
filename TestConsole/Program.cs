@@ -5,8 +5,6 @@ namespace TestConsole
 {
     class Program
     {
-        private static string _desktop = "C:\\Users\\Ilyas Tolegenov\\Desktop\\";
-
         public enum Commands
         {
             help,
@@ -23,34 +21,13 @@ namespace TestConsole
             saveasjson,
             open
         }
+
+        public static List<Employee> employees = new List<Employee>();
+
         static void Main(string[] args)
         {
-            string[] files = File.ReadAllLines(_desktop + "files.txt");
-            List<String> files1 = files.ToList();
 
-            string currentFilepath = "";
-            if (new FileInfo(_desktop + "files.txt").Length == 0)
-            {
-                files1.Add(_desktop + "default.txt");
-                if (File.Exists(files1[0]))
-                {
-                    currentFilepath = _desktop + "default.txt";
-                    using (StreamWriter writer = new StreamWriter(_desktop + "files.txt"))
-                    {
-                        writer.WriteLine(currentFilepath);
-                    }
-                }
-                else
-                {
-                    currentFilepath = _desktop + "default.txt";
-                    using FileStream fs = File.Create(_desktop + "default.txt");
-                }
-            }
-            else currentFilepath = files1[0];
-
-            List<Employee> employees = new List<Employee>();
-
-            LoadDb(currentFilepath, employees);
+            employees = Engine.LoadDb(employees);
 
             Console.WriteLine("Welcome to test task");
 
@@ -69,29 +46,43 @@ namespace TestConsole
 
                         if (input1[0] == nameof(Commands.min))
                         {
-                            MinSalary(employees);
+                            string[] output = DataAccessor.MinSalary(employees);
+                                Console.WriteLine($"{output[0]} has the lowest salary of {output[1]}");
                         }
 
                         if (input1[0] == nameof(Commands.max))
                         {
-                            MaxSalary(employees);
+                            string[] output = DataAccessor.MaxSalary(employees);
+                            Console.WriteLine($"{output[0]} has the highest salary of {output[1]}");
                         }
                         if (input1[0] == nameof(Commands.average))
                         {
-                            AvgSalary(employees);
+                            Console.WriteLine($"The average Salary is {DataAccessor.AvgSalary(employees)}");
                         }
                         if (input1[0] == nameof(Commands.sum))
                         {
-                            SumSalary(employees);
+                            Console.WriteLine($"The total Salary is {DataAccessor.SumSalary(employees)}");
                         }
                         if (input1[0] == nameof(Commands.list))
-                        {
-                            GetRecord(employees);
+                        { 
+                            if (employees.Count == 0)
+                            {
+                                Console.WriteLine("No records");
+                                return;
+                            }
+                            foreach (var employee in employees)
+                            {
+                                Console.WriteLine($"{employee.Id} {employee.Name} {employee.Salary} {employee.EmploymentDate}");
+                            }
                         }
 
                         if (input1[0] == nameof(Commands.listfiles))
                         {
-                            GetFiles(files);
+                            foreach (var line in Engine.GetFiles())
+                            {
+                                string[] entries = line.Split("\\");
+                                Console.WriteLine(entries[entries.Length - 1]);
+                            }
                         }
                         if (input1[0] == "exit")
                             Environment.Exit(1);
@@ -101,22 +92,55 @@ namespace TestConsole
                     {
                         if (input1[0] == nameof(Commands.remove))
                         {
-                            RemoveRecord(Int32.Parse(input1[1])-1, employees, currentFilepath);
+                            if (Int32.Parse(input1[1]) > employees.Count)
+                            {
+                                Console.WriteLine("Invalid Id");
+                                break;
+                            }
+                            if (DataAccessor.RemoveRecord(Int32.Parse(input1[1]) - 1, employees))
+                            {
+                                Console.WriteLine($"Record #{input1[1]} removed");
+                            }
                         }
 
                         if (input1[0] == nameof(Commands.saveastxt))
                         {
-                            SaveAsTxt(input1[1], employees);
+                            if (ContainProhibitedSymbols(input1[1]))
+                                break;
+
+                            if (Engine.SaveAsTxt(input1[1], employees))
+                            {
+                                Console.WriteLine($"Saved Successfully as {input1}.txt");
+                            }
                         }
 
                         if (input1[0] == nameof(Commands.saveasjson))
                         {
-                            SaveAsJson(input1[1], employees);
+                            if (ContainProhibitedSymbols(input1[1]))
+                                break;
+
+                            if (Engine.SaveAsJson(input1[1], employees))
+                            {
+                                Console.WriteLine($"Saved Successfully as {input1}.json");
+                            }
                         }
 
                         if (input1[0] == nameof(Commands.open))
                         {
-                            employees = OpenFile(input1[1], employees, currentFilepath);
+                            if (!File.Exists(Engine._desktop + input1[1]))
+                            {
+                                Console.WriteLine("Wrong Filename or file does not exist");
+                                break;
+                            }
+
+                            if (Engine.OpenFile(input1[1], employees))
+                            {
+                                Console.WriteLine("Read Successful");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Read Failed");
+                            }
                         }
                         break;
                     }
@@ -124,7 +148,10 @@ namespace TestConsole
                     {
                         if (input1[0] == nameof(Commands.add))
                         {
-                            AddRecord(input1, employees, currentFilepath);
+                            if (DataAccessor.AddRecord(input1, employees))
+                            {
+                                Console.WriteLine("Item Added");
+                            }
                         }
                         break;
                     }
@@ -132,203 +159,62 @@ namespace TestConsole
                     {
                         if (input1[0] == nameof(Commands.edit))
                         {
-                                EditRecord(Int32.Parse(input1[1])-1, input1, employees, currentFilepath);
+                            if (DataAccessor.EditRecord(Int32.Parse(input1[1]) - 1, input1, employees))
+                            {
+                                Console.WriteLine("Item Edited");
+                            }
                         }
                         break;
                     }
                 }
             }
         }
-
-        static List<Employee> LoadDb(String filepath, List<Employee> employees)
+        static bool ContainProhibitedSymbols(string input)
         {
-            List<string> lines = File.ReadAllLines(filepath).ToList();
-
-            foreach (var line in lines)
+            Dictionary<int, char> dict = ProhibitedChars();
+            foreach (char c in input)
             {
-                string[] entries = line.Split(',');
-                employees.Add(new Employee{ Name = entries[0], Salary = decimal.Parse(entries[1]), EmploymentDate = DateTime.Parse(entries[2])});
-            }
-
-            return employees;
-        }
-
-        static void AddRecord(string[] input, List<Employee> employees, String filepath)
-        {
-            try
-            {
-                employees.Add(new Employee { Name = input[1], Salary = decimal.Parse(input[2]), EmploymentDate = DateTime.Parse(input[3]) });
-            }
-            catch (Exception e)
-            {
-                employees.Add(new Employee());
-            }
-
-            List<string> output = new List<string>();
-            foreach (var employee in employees)
-            {
-                output.Add($"{employee.Name}, {employee.Salary}, {employee.EmploymentDate}");
-            }
-            File.WriteAllLines(filepath, output);
-
-            Console.WriteLine("Item Added");
-        }
-
-        static void RemoveRecord(int input, List<Employee> employees, String filepath)
-        {
-            employees.Remove(employees[input]);
-            List<string> output = new List<string>();
-
-            foreach (var employee in employees)
-            {
-                output.Add($"{employee.Name}, {employee.Salary}, {employee.EmploymentDate}");
-            }
-            File.WriteAllLines(filepath, output);
-
-            List<string> lines = File.ReadAllLines(filepath).ToList();
-
-            employees[0].ResetId();
-            employees.Clear();
-            foreach (var line in lines)
-            {
-                string[] entries = line.Split(',');
-                employees.Add(new Employee { Name = entries[0], Salary = decimal.Parse(entries[1]), EmploymentDate = DateTime.Parse(entries[2]) });
-            }
-
-            Console.WriteLine("Item Removed");
-        }
-
-        static void EditRecord(int x, string[] input, List<Employee> employees, String filepath)
-        {
-            
-            employees[x] = new Employee { Name = input[2], Salary = decimal.Parse(input[3]), EmploymentDate = DateTime.Parse(input[4]) };
-
-            List<string> output = new List<string>();
-            foreach (var employee in employees)
-            {
-                output.Add($"{employee.Name}, {employee.Salary}, {employee.EmploymentDate}");
-            }
-            File.WriteAllLines(filepath, output);
-            Console.WriteLine("Item Edited");
-        }
-
-        static void SaveAsTxt(string input, List<Employee> employees)
-        {
-            using FileStream fs = File.Create(_desktop + input+".txt");
-            fs.Close();
-            List<string> output = new List<string>();
-            foreach (var employee in employees)
-            {
-                output.Add($"{employee.Name}, {employee.Salary}, {employee.EmploymentDate}");
-            }
-            File.WriteAllLines(_desktop+input+".txt", output);
-
-            Console.WriteLine($"Item Saved as {input}.txt");
-
-        }
-
-        static void SaveAsJson(string input, List<Employee> employees)
-        {
-            string json = System.Text.Json.JsonSerializer.Serialize(employees);
-            File.WriteAllText(_desktop + input+".json", json);
-        }
-
-        static List<Employee> OpenFile(string input, List<Employee> employees, string filepath)
-        {
-            if (!File.Exists(_desktop + input))
-            {
-                Console.WriteLine("Wrong Filename or file does not exist");
-                return employees;
-            }
-            string[] ext = input.Split('.');
-            if (ext[1] == "txt")
-            {
-                List<string> lines = File.ReadAllLines(_desktop + input).ToList();
-
-                employees[0].ResetId();
-                employees.Clear();
-                
-                foreach (var line in lines)
+                if (dict.ContainsValue(c))
                 {
-                    string[] entries = line.Split(',');
-                    employees.Add(new Employee { Name = entries[0], Salary = decimal.Parse(entries[1]), EmploymentDate = DateTime.Parse(entries[2]) });
+                    Console.WriteLine("Invalid Character");
+
+                    Console.WriteLine("Try Avoiding these characters: ");
+
+                    foreach (var value in dict)
+                    {
+                        Console.Write(dict + ", ");
+                    }
+                    return true;
                 }
-
-                filepath = _desktop + input;
-                Console.WriteLine("Read successfully");
-                return employees;
             }
-            else if (ext[1] == "json")
-            {
-                employees[0].ResetId();
-                using (StreamReader r = new StreamReader(_desktop + input))
-                {
-                    string json = r.ReadToEnd();
-                    employees = JsonConvert.DeserializeObject<List<Employee>>(json);
-                }
-                filepath = _desktop + input;
-                Console.WriteLine("Read successfully");
-                List<Employee> temp = new List<Employee>(employees);
-                return employees;
-
-            }
-            Console.WriteLine("Read failed");
-            return employees;
+            return false;
         }
 
-        //////////////////////////////////////////////////////////////////////////////////////////////////
-        static void GetRecord(List<Employee> employees)
+        static private Dictionary<int, char> ProhibitedChars()
         {
-            foreach (var employee in employees)
-            {
-                Console.WriteLine($"{employee.Id} {employee.Name} {employee.Salary} {employee.EmploymentDate}");
-            }
-        }
-
-        static void GetFiles(string[] files)
-        {
-            foreach (var line in files)
-            {
-                string[] entries = line.Split("\\");
-                Console.WriteLine(entries[entries.Length-1]);
-            }
-        }
-
-        static void MinSalary(List<Employee> employees)
-        {
-            decimal lowest = employees.Min(employees => employees.Salary);
-
-            foreach (var employee in employees)
-            {
-                if (employee.Salary == lowest)
-                    Console.WriteLine("The lowest salary is " + employee.Name + " " + lowest);
-            }
-        }
-
-        static void MaxSalary(List<Employee> employees)
-        {
-            decimal highest = employees.Max(employees => employees.Salary);
-            Console.WriteLine(highest.ToString());
-
-            foreach (var employee in employees)
-            {
-                if (employee.Salary == highest)
-                    Console.WriteLine("The highest salary is" + " " + employee.Name + " " + highest);
-            }
-        }
-
-        static void AvgSalary(List<Employee> employees)
-        {
-            decimal avg = employees.Average(employees => employees.Salary);
-            Console.WriteLine("The average salary is" + " " + avg);
-        }
-
-        static void SumSalary(List<Employee> employees)
-        {
-            decimal sum = employees.Sum(employees => employees.Salary);
-
-            Console.WriteLine("The total salary is" + " " + sum);
-
+            Dictionary<int, char> dict = new Dictionary<int, char>();
+            dict.Add(1, '%');
+            dict.Add(2, '#');
+            dict.Add(3, '&');
+            dict.Add(4, '{');
+            dict.Add(5, '}');
+            dict.Add(6, '\\');
+            dict.Add(7, '<');
+            dict.Add(8, '>');
+            dict.Add(9, '*');
+            dict.Add(10, '?');
+            dict.Add(11, '/');
+            dict.Add(12, ' ');
+            dict.Add(13, '$');
+            dict.Add(14, '!');
+            dict.Add(15, '\'');
+            dict.Add(16, ':');
+            dict.Add(17, '@');
+            dict.Add(18, '+');
+            dict.Add(19, '`');
+            dict.Add(20, '|');
+            dict.Add(21, '=');
+            return dict;
         }
     }
 }

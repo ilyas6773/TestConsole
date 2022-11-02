@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace TestConsole
 {
-    internal class Employee
+    public class Employee
     {
         static int nextId;
 
