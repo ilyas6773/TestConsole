@@ -19,15 +19,17 @@ namespace TestConsole
             saveastxt,
             listfiles,
             saveasjson,
-            open
+            open,
+            q,
+            minemploy,
+            maxemploy,
+            avgemploy
         }
-
-        public static List<Employee> employees = new List<Employee>();
 
         static void Main(string[] args)
         {
 
-            employees = Engine.LoadDb(employees);
+            Engine.LoadDb();
 
             Console.WriteLine("Welcome to test task");
 
@@ -35,137 +37,194 @@ namespace TestConsole
             {
                 string input = Console.ReadLine();
                 string[] input1 = input.Split(' ');
-                switch (input1.Length)
+                Commands cmd;
+                if (!Enum.TryParse(input1[0], out cmd))
                 {
-                    case 1:
+                    Console.WriteLine("Incorrect command format. Please type help for more info");
+                    continue;
+                }
+                switch (cmd)
+                {
+                    case Commands.help:
                     {
-                        if (input1[0] == nameof(Commands.help))
-                        {
-                            Console.WriteLine("add [...]; list [...]; remove[...]; edit[...]; min, max, average, sum");
-                        }
-
-                        if (input1[0] == nameof(Commands.min))
-                        {
-                            string[] output = DataAccessor.MinSalary(employees);
-                                Console.WriteLine($"{output[0]} has the lowest salary of {output[1]}");
-                        }
-
-                        if (input1[0] == nameof(Commands.max))
-                        {
-                            string[] output = DataAccessor.MaxSalary(employees);
-                            Console.WriteLine($"{output[0]} has the highest salary of {output[1]}");
-                        }
-                        if (input1[0] == nameof(Commands.average))
-                        {
-                            Console.WriteLine($"The average Salary is {DataAccessor.AvgSalary(employees)}");
-                        }
-                        if (input1[0] == nameof(Commands.sum))
-                        {
-                            Console.WriteLine($"The total Salary is {DataAccessor.SumSalary(employees)}");
-                        }
-                        if (input1[0] == nameof(Commands.list))
-                        { 
-                            if (employees.Count == 0)
-                            {
-                                Console.WriteLine("No records");
-                                return;
-                            }
-                            foreach (var employee in employees)
-                            {
-                                Console.WriteLine($"{employee.Id} {employee.Name} {employee.Salary} {employee.EmploymentDate}");
-                            }
-                        }
-
-                        if (input1[0] == nameof(Commands.listfiles))
-                        {
-                            foreach (var line in Engine.GetFiles())
-                            {
-                                string[] entries = line.Split("\\");
-                                Console.WriteLine(entries[entries.Length - 1]);
-                            }
-                        }
-                        if (input1[0] == "exit")
-                            Environment.Exit(1);
+                        Console.WriteLine("add [...]; list [...]; remove[...]; edit[...]; min, max, average, sum, saveastxt[...], listfiles[...], saveasjson[...], open[...], q");
                         break;
                     }
-                    case 2:
+                    case Commands.min:
                     {
-                        if (input1[0] == nameof(Commands.remove))
+                        string[] output = DataAccessor.MinSalary();
+                        Console.WriteLine($"{output[0]} has the lowest salary of {output[1]}");
+                        break;
+                    }
+                    case Commands.max:
+                    {
+                        string[] output = DataAccessor.MaxSalary();
+                        Console.WriteLine($"{output[0]} has the highest salary of {output[1]}");
+                        break;
+                    }
+                    case Commands.average:
+                    {
+                        Console.WriteLine($"The average Salary is {DataAccessor.AvgSalary()}");
+                        break;
+                    }
+                    case Commands.sum:
+                    {
+                        Console.WriteLine($"The total Salary is {DataAccessor.SumSalary()}");
+                        break;
+                    }
+                    case Commands.list:
+                    {
+                        if (DataAccessor.GetList().Count == 0)
                         {
-                            if (Int32.Parse(input1[1]) > employees.Count)
-                            {
-                                Console.WriteLine("Invalid Id");
-                                break;
-                            }
-                            if (DataAccessor.RemoveRecord(Int32.Parse(input1[1]) - 1, employees))
-                            {
-                                Console.WriteLine($"Record #{input1[1]} removed");
-                            }
+                            Console.WriteLine("The list is empty");
+                            break;
                         }
-
-                        if (input1[0] == nameof(Commands.saveastxt))
+                        foreach (var employee in DataAccessor.GetList())
                         {
-                            if (ContainProhibitedSymbols(input1[1]))
-                                break;
-
-                            if (Engine.SaveAsTxt(input1[1], employees))
-                            {
-                                Console.WriteLine($"Saved Successfully as {input1}.txt");
-                            }
-                        }
-
-                        if (input1[0] == nameof(Commands.saveasjson))
-                        {
-                            if (ContainProhibitedSymbols(input1[1]))
-                                break;
-
-                            if (Engine.SaveAsJson(input1[1], employees))
-                            {
-                                Console.WriteLine($"Saved Successfully as {input1}.json");
-                            }
-                        }
-
-                        if (input1[0] == nameof(Commands.open))
-                        {
-                            if (!File.Exists(Engine._desktop + input1[1]))
-                            {
-                                Console.WriteLine("Wrong Filename or file does not exist");
-                                break;
-                            }
-
-                            if (Engine.OpenFile(input1[1], employees))
-                            {
-                                Console.WriteLine("Read Successful");
-                            }
-                            else
-                            {
-                                Console.WriteLine("Read Failed");
-                            }
+                            Console.WriteLine($"{employee.Id} {employee.Name} {employee.Salary} {employee.EmploymentDate}");
                         }
                         break;
                     }
-                    case 4:
+                    case Commands.listfiles:
                     {
-                        if (input1[0] == nameof(Commands.add))
+                        foreach (var line in Engine.GetFiles())
                         {
-                            if (DataAccessor.AddRecord(input1, employees))
+                            string[] entries = line.Split("\\");
+                            Console.WriteLine(entries[entries.Length - 1]);
+                        }
+                        break;
+                    }
+                    case Commands.remove:
+                    {
+                        if (input1.Length != 2)
+                        {
+                            Console.WriteLine("Not enough arguments. Correct form: remove [Id]");
+                            break;
+                        }
+
+                        if (Int32.TryParse(input1[1], out int x))
+                        {
+                            Console.WriteLine(DataAccessor.RemoveRecord(Int32.Parse(input1[1]))
+                                ? $"Record #{input1[1]} removed"
+                                : "No such ID");
+                        }
+                        else Console.WriteLine("Write correct value");
+                        break;
+                    }
+                    case Commands.saveastxt:
+                    {
+                        if (input1.Length != 2)
+                        {
+                            Console.WriteLine("Not enough arguments. Correct form: saveastxt [filename]");
+                            break;
+                        }
+
+                        if (ContainProhibitedSymbols(input1[1]))
+                                break;
+                        if (Engine.SaveAsTxt(input1[1]))
+                        {
+                            Console.WriteLine($"Saved Successfully as {input1}.txt");
+                        }
+                        break;
+                    }
+                    case Commands.saveasjson:
+                    {
+                        if (input1.Length != 2)
+                        {
+                            Console.WriteLine("Not enough arguments. Correct form: saveasjson [filename]");
+                            break;
+                        }
+
+                        if (ContainProhibitedSymbols(input1[1]))
+                            break;
+                        if (Engine.SaveAsJson(input1[1]))
+                        {
+                            Console.WriteLine($"Saved Successfully as {input1}.txt");
+                        }
+                        
+                        break;
+                    }
+                    case Commands.open:
+                    {
+                        if (input1.Length != 2)
+                        {
+                            Console.WriteLine(
+                                "Incorrect number of arguments. Correct form: open [filename.extenstion]");
+                            break;
+                        }
+
+                        if (!File.Exists(Engine._desktop + input1[1]))
+                        {
+                            Console.WriteLine("Wrong Filename or file does not exist");
+                            break;
+                        }
+
+                        Console.WriteLine(Engine.OpenFile(input1[1]) ? "Read Successful" : "Read Failed");
+                        break;
+                    }
+                    case Commands.add:
+                    {
+                        if (input1.Length != 4)
+                        {
+                            Console.WriteLine("Incorrect number of arguments. Correct form: edit [name] [salary] [employmentDate]");
+                            break;
+                        }
+                        if (Decimal.TryParse(input1[2], out decimal x) &&
+                            DateTime.TryParse(input1[3], out DateTime y))
+                        {
+                            if (DataAccessor.AddRecord(input1[1], Decimal.Parse(input1[2]),
+                                    DateTime.Parse(input1[3])))
                             {
                                 Console.WriteLine("Item Added");
                             }
                         }
+                        else
+                            Console.WriteLine("Salary or EmploymentDate value is incorrect format");
                         break;
                     }
-                    case 5:
+                    case Commands.edit:
                     {
-                        if (input1[0] == nameof(Commands.edit))
+                        if (input1.Length != 5)
                         {
-                            if (DataAccessor.EditRecord(Int32.Parse(input1[1]) - 1, input1, employees))
+                            Console.WriteLine("Incorrect number of arguments. Correct form: edit [Id] [name] [salary] [employmentDate]");
+                            break;
+                        }
+                        if (Int32.TryParse(input1[1], out int z) &&
+                            Decimal.TryParse(input1[3], out decimal x) &&
+                            DateTime.TryParse(input1[4], out DateTime y))
+                        {
+                            if (DataAccessor.EditRecord(Int32.Parse(input1[1]) - 1, input1[2], Decimal.Parse(input1[3]), DateTime.Parse(input1[4])))
                             {
                                 Console.WriteLine("Item Edited");
                             }
                         }
+                        else
+                            Console.WriteLine("ID or Salary or EmploymentDate value is incorrect format");
                         break;
                     }
+                    case Commands.q:
+                        Environment.Exit(1);
+                        break;
+                    case Commands.maxemploy:
+                    {
+                        string[] output = DataAccessor.maxEmploy();
+                            Console.WriteLine($"{output[0]} has been employed the longest {DateTime.Now - DateTime.Parse(output[1])} days");
+                        break;
+                    }
+                    case Commands.minemploy:
+                    {
+                        string[] output = DataAccessor.minEmploy();
+                        Console.WriteLine($"{output[0]} has been employed the least {DateTime.Now - DateTime.Parse(output[1])} days");
+                        break;
+                    }
+                    case Commands.avgemploy:
+                    {
+                        Console.WriteLine($"The average employment duration is {DataAccessor.avgEmploy()} days");
+                        break;
+                    }
+                    default:
+                        Console.WriteLine("Incorrect command format. For more info type help");
+                        break;
                 }
             }
         }
