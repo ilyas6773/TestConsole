@@ -7,22 +7,22 @@ using Newtonsoft.Json;
 
 namespace TestConsole
 {
-    public class DataAccessor
+    public static class DataAccessor
     {
-
-        public static bool AddRecord(string[] input, List<Employee> employees)
+        private static List<Employee> _Stack = Engine.LoadDb();
+        public static bool AddRecord(string name, decimal salary, DateTime employmentDate)
         {
             try
             {
-                employees.Add(new Employee { Name = input[1], Salary = decimal.Parse(input[2]), EmploymentDate = DateTime.Parse(input[3]) });
+                _Stack.Add(new Employee { Name = name, Salary = salary, EmploymentDate = employmentDate });
             }
             catch (Exception e)
             {
-                employees.Add(new Employee());
+                _Stack.Add(new Employee());
             }
 
-            List<string> output = new();
-            foreach (var employee in employees)
+            List<string> output = new ();
+            foreach (var employee in _Stack)
             {
                 output.Add($"{employee.Name}, {employee.Salary}, {employee.EmploymentDate}");
             }
@@ -31,12 +31,16 @@ namespace TestConsole
             return true;
         }
 
-        public static bool RemoveRecord(int input, List<Employee> employees)
+        public static bool RemoveRecord(int input)
         {
-            employees.Remove(employees[input]);
+            if (input > _Stack.Count)
+            {
+                return false;
+            }
+            _Stack.Remove(_Stack[input]);
             List<string> output = new List<string>();
 
-            foreach (var employee in employees)
+            foreach (var employee in _Stack)
             {
                 output.Add($"{employee.Name}, {employee.Salary}, {employee.EmploymentDate}");
             }
@@ -44,24 +48,24 @@ namespace TestConsole
 
             List<string> lines = File.ReadAllLines(Engine.currentFilepath).ToList();
 
-            employees[0].ResetId();
-            employees.Clear();
+            _Stack[0].ResetId();
+            _Stack.Clear();
             foreach (var line in lines)
             {
                 string[] entries = line.Split(',');
-                employees.Add(new Employee { Name = entries[0], Salary = decimal.Parse(entries[1]), EmploymentDate = DateTime.Parse(entries[2]) });
+                _Stack.Add(new Employee { Name = entries[0], Salary = decimal.Parse(entries[1]), EmploymentDate = DateTime.Parse(entries[2]) });
             }
 
             return true;
         }
 
-        public static bool EditRecord(int x, string[] input, List<Employee> employees)
+        public static bool EditRecord(int x, string name, decimal salary, DateTime employmentDate)
         {
 
-            employees[x] = new Employee { Name = input[2], Salary = decimal.Parse(input[3]), EmploymentDate = DateTime.Parse(input[4]) };
+            _Stack[x] = new Employee { Name = name, Salary = salary, EmploymentDate = employmentDate};
 
             List<string> output = new();
-            foreach (var employee in employees)
+            foreach (var employee in _Stack)
             {
                 output.Add($"{employee.Name}, {employee.Salary}, {employee.EmploymentDate}");
             }
@@ -70,13 +74,13 @@ namespace TestConsole
             return true;
         }
 
-        public static String[] MinSalary(List<Employee> employees)
+        public static String[] MinSalary()
         {
-            decimal lowest = employees.Min(employees => employees.Salary);
+            decimal lowest = _Stack.Min(employees => employees.Salary);
 
             string[] output = new string[2];
 
-            foreach (var employee in employees)
+            foreach (var employee in _Stack)
             {
                 if (employee.Salary == lowest)
                 {
@@ -88,12 +92,12 @@ namespace TestConsole
             return output;
         }
 
-        public static String[] MaxSalary(List<Employee> employees)
+        public static String[] MaxSalary()
         {
-            decimal highest = employees.Max(employees => employees.Salary);
+            decimal highest = _Stack.Max(employees => employees.Salary);
             string[] output = new string[2];
 
-            foreach (var employee in employees)
+            foreach (var employee in _Stack)
             {
                 if (employee.Salary == highest)
                 {
@@ -105,15 +109,86 @@ namespace TestConsole
             return output;
         }
 
-        public static decimal AvgSalary(List<Employee> employees)
+        public static decimal AvgSalary()
         {
-            return employees.Average(employees => employees.Salary);
+            return _Stack.Average(employees => employees.Salary);
 
         }
 
-        public static decimal SumSalary(List<Employee> employees)
+        public static decimal SumSalary()
         {
-            return employees.Sum(employees => employees.Salary);
+            return _Stack.Sum(employees => employees.Salary);
+        }
+
+        public static List<Employee> GetList()
+        {
+            return _Stack;
+        }
+
+        public static void SetList(List<Employee> input)
+        {
+            _Stack = input;
+        }
+
+        public static void ClearList()
+        {
+            _Stack.Clear();
+        }
+
+        public static void Reset()
+        {
+            _Stack[0].ResetId();
+        }
+
+        public static void AddToList(string name, decimal salary, DateTime employmentDate)
+        {
+            _Stack.Add(new Employee { Name = name, Salary = salary, EmploymentDate = employmentDate});
+        }
+
+        public static string[] maxEmploy()
+        {
+            DateTime x = _Stack.Min(employee => employee.EmploymentDate);
+            string[] output = new string[2];
+            foreach (var employee in _Stack)
+            {
+                if (employee.EmploymentDate == x)
+                {
+                    output[0] = employee.Name;
+                    output[1] = employee.EmploymentDate.ToString();
+                }
+
+            }
+            return output;
+        }
+
+        public static string[] minEmploy()
+        {
+            DateTime x = _Stack.Max(employee => employee.EmploymentDate);
+            string[] output = new string[2];
+            foreach (var employee in _Stack)
+            {
+                if (employee.EmploymentDate == x)
+                {
+                    output[0] = employee.Name;
+                    output[1] = employee.EmploymentDate.ToString();
+                }
+
+            }
+            return output;
+        }
+
+        public static double avgEmploy()
+        {
+            List<DateTime> dates = new();
+            foreach (var employee in _Stack)
+            {
+                dates.Add(employee.EmploymentDate);
+            }
+            var avg = dates.Zip(dates.Skip(1), (dt1, dt2) => dt2 - dt1)
+                          .Aggregate(0d, (a, dt) => a + dt.Days)
+                      / (dates.Count - 1);
+
+            return avg;
         }
     }
 }
