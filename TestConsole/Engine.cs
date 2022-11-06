@@ -14,7 +14,7 @@ namespace TestConsole
         public static string currentFilepath = "";
 
         private static string[] files = File.ReadAllLines(_desktop + "files.txt");
-        public static List<Employee> LoadDb(List<Employee> employees)
+        public static List<Employee> LoadDb()
         {
             List<string> files1 = files.ToList();
 
@@ -39,6 +39,8 @@ namespace TestConsole
 
             List<string> lines = File.ReadAllLines(currentFilepath).ToList();
 
+            List<Employee> employees = new();
+
             foreach (var line in lines)
             {
                 string[] entries = line.Split(',');
@@ -53,7 +55,7 @@ namespace TestConsole
             return files;
         }
 
-        public static bool OpenFile(string input, List<Employee> employees)
+        public static bool OpenFile(string input)
         {
             
             string[] ext = input.Split('.');
@@ -61,31 +63,29 @@ namespace TestConsole
             {
                 List<string> lines = File.ReadAllLines(_desktop + input).ToList();
 
-                employees[0].ResetId();
-                employees.Clear();
+                DataAccessor.Reset();
+                DataAccessor.ClearList();
 
                 foreach (var line in lines)
                 {
                     string[] entries = line.Split(',');
-                    employees.Add(new Employee { Name = entries[0], Salary = decimal.Parse(entries[1]), EmploymentDate = DateTime.Parse(entries[2]) });
+                    DataAccessor.AddToList( entries[0], decimal.Parse(entries[1]), DateTime.Parse(entries[2]));
                 }
 
                 currentFilepath = _desktop + input;
-                Program.employees = employees;
                 return true;
             }
             else if (ext[1] == "json")
             {
-                employees[0].ResetId();
+                DataAccessor.Reset();
+                DataAccessor.ClearList();
                 using (StreamReader r = new StreamReader(_desktop + input))
                 {
                     string json = r.ReadToEnd();
-                    employees = JsonConvert.DeserializeObject<List<Employee>>(json);
+                    DataAccessor.SetList(JsonConvert.DeserializeObject<List<Employee>>(json));
                 }
 
                 currentFilepath = _desktop + input;
-                List<Employee> temp = new(employees);
-                Program.employees = employees;
                 return true;
 
             }
@@ -93,12 +93,12 @@ namespace TestConsole
             return false;
         }
 
-        public static bool SaveAsTxt(string input, List<Employee> employees)
+        public static bool SaveAsTxt(string input)
         {
             using FileStream fs = File.Create(_desktop + input + ".txt");
             fs.Close();
             List<string> output = new();
-            foreach (var employee in employees)
+            foreach (var employee in DataAccessor.GetList())
             {
                 output.Add($"{employee.Name}, {employee.Salary}, {employee.EmploymentDate}");
             }
@@ -106,9 +106,9 @@ namespace TestConsole
             return true;
         }
 
-        public static bool SaveAsJson(string input, List<Employee> employees)
+        public static bool SaveAsJson(string input)
         {
-            string json = System.Text.Json.JsonSerializer.Serialize(employees);
+            string json = System.Text.Json.JsonSerializer.Serialize(DataAccessor.GetList());
             File.WriteAllText(_desktop + input + ".json", json);
             return true;
         }
